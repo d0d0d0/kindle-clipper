@@ -11,8 +11,9 @@ fname = "/media/%s/Kindle/documents/My Clippings.txt" % (user)
 
 class Clipper:
 
-	def __init__(self, inp):
+	def __init__(self, inp=fname):
 		self.clippings = open(inp, 'r', encoding='utf-8-sig').read()
+		self.notebook = None
 
 	def createNotebook(self):
 		notebook = {}
@@ -32,9 +33,27 @@ class Clipper:
 
 			notebook[book]["notes"].append(note)
 
+		self.notebook = notebook
 		return notebook
 
-	def writeNotebook(self, notebook, out, type="txt"):
+	def findNotesByBook(self, book):
+		partial_notebook = {}
+		for k,v in self.notebook.items():
+			if book in k:
+				partial_notebook[k] = v
+
+		return partial_notebook
+
+
+	def findNotesByWriter(self, writer):
+		partial_notebook = {}
+		for k,v in self.notebook.items():
+			if writer in v["writer"]:
+				partial_notebook[k] = v
+
+		return partial_notebook
+
+	def writeNotes(self, notebook, out, type="txt"):
 		if type == "txt":
 			doc = "Reading Notes\n\n"
 			for k,v in notebook.items():
@@ -57,6 +76,8 @@ class Clipper:
 					document.add_paragraph(t, style='List Bullet')
 			document.save(out + ".docx")
 
-c = Clipper(fname)
+c = Clipper("./Kindle_Clippings_26.09.2019.txt")
 nb = c.createNotebook()
-c.writeNotebook(nb, "notebook", "docx")
+# by_writer = c.findNotesByWriter("Jordan")
+# by_book = c.findNotesByBook("12")
+c.writeNotes(nb, "notebook", "docx")
