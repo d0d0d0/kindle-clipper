@@ -1,30 +1,48 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import getpass
+import re
 from docx import Document
 from docx.shared import Inches
 
-temp = "%s\n%s\n\n"
-user = getpass.getuser()
-fname = "/media/%s/Kindle/documents/My Clippings.txt" % (user)
-
 class Clipper:
 
-	def __init__(self, inp=fname):
-		self.clippings = open(inp, 'r', encoding='utf-8-sig').read()
-		self.notebook = None
+	def __init__(self):
+		self.clippings = None
+		self.notebook = {}
+		self.book_list = []
+		self.dictionary = []
 
-	def createNotebook(self):
+	def load_file(self, input):
+		self.clippings = open(input, 'r', encoding='utf-8').read()
+		self.create_notebook()
+
+	def list_books(self):
+		self.book_list = [book for book, _ in self.notebook.items()]
+
+	def create_notebook(self):
 		notebook = {}
-		for c in filter(None, self.clippings.split("==========\n")):
-			header, meta, text = filter(None, c.split("\n"))
 
-			book, writer = header[:-1].split(" (")
+		for c in filter(None, self.clippings.split("==========\n")):
+			lines = list(filter(None, c.split("\n")))
+
+			if len(lines) < 3: # there is no text
+				continue 
+
+			header, meta, text = filter(None, lines)
 			
-			smeta = meta.split(" | ")
-			page = smeta[0].split("Page ")[-1]
-			date = smeta[2].split("Added on ")[-1]
+			if " " not in text: # if it is just a word
+				text = re.sub(r'[^\w\s]', '', text)
+				self.dictionary.append(text)
+				continue
+
+			book, writer = header[:-1].rsplit(" (", 1)
+			book = re.sub('/[\x00-\x1F\x7F]/u','', book) # encode to ascii
+
+			indicators = meta.split(" | ")
+
+			page = 0 if len(indicators) < 3 else indicators[0].split("page ")[-1]
+			date = (indicators[-1].split("Added on ")[-1]).rsplit(" ", 2)[0]
 
 			note = {"page": page, "date": date, "text": text}
 
@@ -36,7 +54,7 @@ class Clipper:
 		self.notebook = notebook
 		return notebook
 
-	def findNotesByBook(self, book):
+	def find_notes_by_book(self, book):
 		partial_notebook = {}
 		for k,v in self.notebook.items():
 			if book in k:
@@ -44,8 +62,7 @@ class Clipper:
 
 		return partial_notebook
 
-
-	def findNotesByWriter(self, writer):
+	def find_notes_by_writer(self, writer):
 		partial_notebook = {}
 		for k,v in self.notebook.items():
 			if writer in v["writer"]:
@@ -53,11 +70,12 @@ class Clipper:
 
 		return partial_notebook
 
-	def writeNotes(self, notebook, out, type="txt"):
+	def write_notes(self, notebook, out, type="docx", is_dictionary=False):
+
 		if type == "txt":
 			doc = "Reading Notes\n\n"
 			for k,v in notebook.items():
-				doc += temp %(k, v["writer"])
+				doc += "%s\n%s\n\n" %(k, v["writer"])
 				for n in v["notes"]:
 					doc += "- %s (on p.%s at %s)\n" %(n["text"], n["page"], n["date"])
 				doc += "\n"
@@ -65,7 +83,8 @@ class Clipper:
 			f = open(out + ".txt", 'w+')
 			f.write(doc)
 			f.close()
-		elif type == "docx":
+
+		else:
 			document = Document()
 			document.add_heading('Reading Notes', 0)
 			for k,v in notebook.items():
@@ -74,10 +93,9 @@ class Clipper:
 				for n in v["notes"]:
 					t = "%s (on p.%s at %s)\n" %(n["text"], n["page"], n["date"])
 					document.add_paragraph(t, style='List Bullet')
-			document.save(out + ".docx")
 
-c = Clipper("./Kindle_Clippings_26.09.2019.txt")
-nb = c.createNotebook()
-# by_writer = c.findNotesByWriter("Jordan")
-# by_book = c.findNotesByBook("12")
-c.writeNotes(nb, "notebook", "docx")
+			if is_dictionary:
+				document.add_heading("Dictionary", level=2)
+				document.add_paragraph(", ".join(self.dictionary))
+
+			document.save(out + ".docx")
