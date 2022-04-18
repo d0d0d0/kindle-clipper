@@ -4,6 +4,9 @@
 import re
 from docx import Document
 from docx.shared import Inches
+from dictionary_api import *
+
+import time
 
 class Clipper:
 
@@ -70,6 +73,33 @@ class Clipper:
 
 		return partial_notebook
 
+	def build_dictionary(self):
+
+		dictionary_text = ""
+
+		counter = 0 # for limited api search
+
+		start = time.time()
+
+		self.dictionary = list(set([word.lower() for word in self.dictionary]))
+		self.dictionary.sort()
+
+		for word in self.dictionary:
+			definition = search_word(word)
+
+			if definition:
+				dictionary_text += "%s: %s \n" %(word, definition)
+
+			counter += 1
+
+			if counter == MINUTE_LIMIT - 1 and time.time() - start < 60:
+				#print("sleep started after %d count and time %f" %(counter, time.time() - start))
+				time.sleep(time.time() - start + 1)
+				start = time.time() 
+				counter = 0
+
+		return dictionary_text
+
 	def write_notes(self, notebook, out, type="docx", is_dictionary=False):
 
 		if type == "txt":
@@ -95,7 +125,9 @@ class Clipper:
 					document.add_paragraph(t, style='List Bullet')
 
 			if is_dictionary:
+				dictionary_text = self.build_dictionary()
+
 				document.add_heading("Dictionary", level=2)
-				document.add_paragraph(", ".join(self.dictionary))
+				document.add_paragraph(dictionary_text)
 
 			document.save(out + ".docx")

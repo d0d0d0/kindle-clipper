@@ -21,7 +21,7 @@ class ClipperUI:
 		self.window = tk.Tk()
 		self.window.title('Kindle Clipper')
 		self.window.resizable(False, False)
-		self.window.geometry('380x350')
+		self.window.geometry('380x380')
 
 		# open clippings button
 		open_clippings_button = ttk.Button(self.window, text='Open clippings', command=self.open_clippings_handler)
@@ -41,8 +41,14 @@ class ClipperUI:
 
 		file_name = fd.askopenfilename(filetypes=(('text files', '*.txt'), ('All Files', '*.*')))
 
-		self.clipper.load_file(file_name)
-		self.clipper.list_books()
+		try:
+			self.clipper.load_file(file_name)
+			self.clipper.list_books()
+		except ValueError as e:
+			messagebox.showinfo("Error occured",  "Cannot parse the clippings, probably version mismatch.")
+		except Exception as e:
+			print(e)
+			messagebox.showinfo("Error occured",  "Unknown error")
 
 		self.listbox = tk.Listbox(self.window, listvariable=tk.StringVar(value=self.clipper.book_list), height=15, selectmode='extended')
 		self.listbox.grid(column=0, row=1, rowspan=4, columnspan=3, padx=10, pady=10, sticky='nwes')
@@ -51,6 +57,11 @@ class ClipperUI:
 		scrollbar = tk.Scrollbar(self.window, orient="vertical", command=self.listbox.yview)
 		scrollbar.grid(column=4, row=1, rowspan=4, sticky='ns')
 		self.listbox.configure(yscrollcommand=scrollbar.set, scrollregion=self.listbox.bbox("end"))
+
+		self.is_dictionary = tk.IntVar()
+	
+		dictionary_checkbox = tk.Checkbutton(self.window, text='dictionary', variable=self.is_dictionary, onvalue=1, offvalue=0, state=tk.DISABLED)
+		dictionary_checkbox.grid(column=0, row=5, sticky='ns')
 		
 		self.generate_all_highlights_button['state'] = tk.NORMAL
 
@@ -77,7 +88,7 @@ class ClipperUI:
 		file_name = fd.asksaveasfilename(filetypes=(('document', '*.docx'), ('All Files', '*.*')))
 		
 		if file_name:
-			self.clipper.write_notes(self.clipper.notebook, file_name, is_dictionary=True)
+			self.clipper.write_notes(self.clipper.notebook, file_name, is_dictionary=self.is_dictionary.get())
 			messagebox.showinfo("Export completed",  "All highlights are extracted to %s.docx" %(file_name))
 			self.window.destroy()
 
